@@ -673,9 +673,32 @@ $("save").addEventListener("click", async () => {
   if (db) {
     try { await db.doc("workouts/" + entry.id).set(entry); await flush(); msg.textContent = "Salvat. Bravo! Data viitoare: " + DAYNAME[nextDay()] + "."; }
     catch(e){ msg.textContent = "Salvat doar pe telefon (serverul n-a răspuns)."; }
-  } else msg.textContent = "Salvat pe telefon. Data viitoare: " + DAYNAME[nextDay()] + ".";
+  } else { msg.textContent = "Salvat. Data viitoare: " + DAYNAME[nextDay()] + "."; await sendToSheet([entry]); if (sheetOn()) msg.textContent += " Trimis și în tabel ✓"; }
   render();
 });
+
+/* ---------- Google Sheet sync ---------- */
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbwIkuQc1wRFy2IaRyUhGxdoxtA4lteKE0-jy_ItoFMpIgCpr0xyl7yoKVtBfU17G_BN/exec";
+const sheetOn = () => SHEET_URL.startsWith("https://");
+function sendToSheet(list){
+  if (!sheetOn() || !list.length) return Promise.resolve();
+  return fetch(SHEET_URL, {method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({workouts:list})}).catch(() => {});
+}
+async function syncSheet(){
+  if (!sheetOn()) return;
+  try {
+    const r = await fetch(SHEET_URL); const j = await r.json();
+    const remote = Array.isArray(j.workouts) ? j.workouts : [];
+    const have = new Set(remote.map(w => w.id));
+    const byId = new Map(history.map(h => [h.id, h]));
+    for (const w of remote) if (!byId.has(w.id)) byId.set(w.id, w);
+    const missing = history.filter(h => !have.has(h.id));
+    history = [...byId.values()].sort((a,b) => b.date.localeCompare(a.date));
+    saveLocal(); render();
+    if (missing.length) await sendToSheet(missing);
+    setSync("✓ salvat + tabel", "ok");
+  } catch(e) {}
+}
 
 /* ---------- boot ---------- */
 const SEED = [{"date": "2026-10-29T06:18:40.703Z", "day": "A", "exercises": {"calf": [{"r": 20, "w": 0}, {"r": 20, "w": 10}, {"r": 20, "w": 10}, {"r": 10, "w": 20}], "chestpress": [{"r": 10, "w": 30}, {"r": 10, "w": 35}, {"r": 9, "w": 40}, {"r": 5, "w": 45}], "curl": [{"r": 10, "w": 5}, {"r": 9, "w": 8}, {"r": 8, "w": 8}, {"r": 5, "w": 8}], "lateral": [{"r": 10, "w": 5}, {"r": 10, "w": 5}, {"r": 10, "w": 6}], "legpress": [{"r": 10, "w": 0}, {"r": 10, "w": 0}, {"r": 11, "w": 0}], "pullup": [{"r": 8, "w": null}, {"r": 5, "w": null}, {"r": 4, "w": null}], "pushdown": [{"r": 15, "w": 15}, {"r": 15, "w": 20}, {"r": 10, "w": 25}], "shoulderpress": [{"r": 10, "w": 5}, {"r": 10, "w": 8}, {"r": 10, "w": 8}, {"r": 9, "w": 8}]}, "id": "2026-10-29-A"}, {"date": "2026-10-31T02:48:22.275Z", "day": "B", "exercises": {"hammer": [{"r": 8, "w": 8}, {"r": 7, "w": 8}], "incline": [{"r": 10, "w": 8}, {"r": 10, "w": 10}, {"r": 10, "w": 10}], "latpull": [{"r": 8, "w": 30}], "legext": [{"r": 10, "w": 35}, {"r": 10, "w": 35}, {"r": 10, "w": 40}], "pullup": [{"r": 8, "w": null}, {"r": 5, "w": null}, {"r": 3, "w": null}, {"r": 1, "w": null}], "pushrope": [{"r": 12, "w": 20}, {"r": 12, "w": 20}, {"r": 10, "w": 20}]}, "id": "2026-10-31-B", "neg": {"pullup": 5}}, {"date": "2026-11-02T06:51:43.991Z", "day": "A", "exercises": {"calf": [{"r": 15, "w": 10}, {"r": 12, "w": 20}, {"r": 13, "w": 20}], "chestpress": [{"r": 10, "w": 40}, {"r": 10, "w": 40}, {"r": 14, "w": 40}], "curl": [{"r": 12, "w": 8}, {"r": 11, "w": 8}, {"r": 10, "w": 8}], "lateral": [{"r": 10, "w": 6}, {"r": 10, "w": 6}, {"r": 11, "w": 6}], "legpress": [{"r": 10, "w": 0}, {"r": 10, "w": 10}, {"r": 12, "w": 10}], "pullup": [{"r": 9, "w": null}, {"r": 5, "w": null}, {"r": 3, "w": null}], "pushdown": [{"r": 12, "w": 20}, {"r": 12, "w": 25}, {"r": 9, "w": 25}], "shoulderpress": [{"r": 12, "w": 8}, {"r": 12, "w": 10}, {"r": 11, "w": 10}], "shrug": [{"r": 13, "w": 15}, {"r": 13, "w": 15}, {"r": 13, "w": 15}]}, "id": "2026-11-02-A", "neg": {"pullup": 6}}, {"date": "2026-11-04T05:00:00.000Z", "day": "A", "exercises": {"cablecurl": [{"r": 10, "w": 20}, {"r": 10, "w": 20}, {"r": 10, "w": 20}], "calf": [{"r": 12, "w": 20}, {"r": 12, "w": 20}, {"r": 12, "w": 20}], "chestpress": [{"r": 12, "w": 45}, {"r": 10, "w": 45}, {"r": 10, "w": 45}], "lateral": [{"r": 15, "w": 5}, {"r": 12, "w": 6}, {"r": 10, "w": 7}], "legpress": [{"r": 10, "w": 20}, {"r": 10, "w": 20}, {"r": 10, "w": 20}], "overhead": [{"r": 10, "w": 10}, {"r": 10, "w": 15}], "pecfly": [{"r": 10, "w": 35}, {"r": 10, "w": 35}, {"r": 10, "w": 35}], "pullup": [{"r": 8, "w": null}, {"r": 4, "w": null}, {"r": 3, "w": null}], "pushdown": [{"r": 12, "w": 25}, {"r": 10, "w": 25}, {"r": 8, "w": 25}], "shoulderpress": [{"r": 10, "w": 10}, {"r": 9, "w": 10}, {"r": 8, "w": 10}], "shrug": [{"r": 13, "w": 15}, {"r": 13, "w": 15}, {"r": 13, "w": 15}]}, "id": "2026-11-04-A", "neg": {"pullup": 5}}, {"date": "2026-11-07T12:18:17.026Z", "day": "U2", "exercises": {"chestpress": [{"r": 12, "w": 45}, {"r": 12, "w": 45}, {"r": 11, "w": 45}], "hammer": [{"r": 10, "w": 8}, {"r": 9, "w": 8}, {"r": 5, "w": 8}], "incline": [{"r": 10, "w": 10}, {"r": 10, "w": 10}, {"r": 11, "w": 10}], "lateral": [{"r": 10, "w": 5}, {"r": 10, "w": 5}, {"r": 15, "w": 5}], "overhead": [{"r": 10, "w": 10}, {"r": 15, "w": 15}], "pecfly": [{"r": 10, "w": 35}, {"r": 10, "w": 40}, {"r": 10, "w": 40}], "pullup": [{"r": 8, "w": null}, {"r": 7, "w": null}, {"r": 5, "w": null}], "pushdown": [{"r": 10, "w": 25}, {"r": 5, "w": 25}, {"r": 9, "w": 20}], "revpec": [{"r": 10, "w": 25}, {"r": 10, "w": 25}, {"r": 10, "w": 25}]}, "id": "2026-11-07-U2", "neg": {"pullup": 7}}, {"date": "2026-11-11T10:00:00.000Z", "day": "U1", "exercises": {"bench": [{"r": 12, "w": 30}, {"r": 10, "w": 40}, {"r": 4, "w": 50}, {"r": 1, "w": 55}, {"r": 10, "w": 45}], "curl": [{"r": 10, "w": 10}], "hammer": [{"r": 7, "w": 8}], "lateral": [{"r": 15, "w": 5}, {"r": 17, "w": 2.5}, {"r": 20, "w": 2.5}], "overhead": [{"r": 10, "w": 15}, {"r": 10, "w": 15}, {"r": 10, "w": 15}], "platepress": [{"r": 10, "w": 10}, {"r": 5, "w": 15}, {"r": 9, "w": 19}], "platerow": [{"r": 12, "w": 15}, {"r": 10, "w": 20}, {"r": 12, "w": 20}], "pullup": [{"r": 9, "w": null}, {"r": 3, "w": null}, {"r": 4, "w": null}], "pushdown": [{"r": 12, "w": 25}, {"r": 10, "w": 25}, {"r": 10, "w": 25}]}, "id": "2026-11-11-U1", "names": {"bench": "Împins cu bara la piept", "curl": "Flexii biceps cu gantere", "hammer": "Biceps ciocan", "lateral": "Ridicări laterale", "overhead": "Triceps peste cap", "platepress": "Presă umeri la aparat cu discuri", "platerow": "Ramat la aparat cu discuri", "pullup": "Tracțiuni la bară", "pushdown": "Triceps la scripete"}, "neg": {"pullup": 7}, "note": "PR bench 55 kg × 1"}];
@@ -687,6 +710,7 @@ try {
 view = nextDay();
 setSync("se încarcă…");
 render();
+syncSheet();
 
 (async () => {
   const timer = setTimeout(() => { if (!db) setSync("✓ salvat", "ok"); }, 10000);
