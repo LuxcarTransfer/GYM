@@ -1,0 +1,722 @@
+<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sala"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Sala</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one-column gym logbook. Sticky day switcher (A / B / Istoric), exercise cards with how-to + set inputs, save bar at the bottom. */
+:root{
+  --bg:#f2f3ef; --card:#ffffff; --fg:#14171a; --muted:#5e6670; --line:#dde0da;
+  --accent:#2f6fe4; --accent-ink:#ffffff; --good:#1f8a52; --hot:#e5533d; --soft:#e8eefc; --input:#f6f7f4;
+  --display:"Barlow Condensed",ui-sans-serif,system-ui,sans-serif;
+  --text:"Figtree",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101215; --card:#1a1d21; --fg:#eef0f2; --muted:#9aa2ab; --line:#2a2f35;
+  --accent:#5b8ff0; --accent-ink:#0b1020; --good:#46c07f; --hot:#ff6a52; --soft:#1c2740; --input:#22262b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101215; --card:#1a1d21; --fg:#eef0f2; --muted:#9aa2ab; --line:#2a2f35;
+  --accent:#5b8ff0; --accent-ink:#0b1020; --good:#46c07f; --hot:#ff6a52; --soft:#1c2740; --input:#22262b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 120px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;display:flex;flex-direction:column;gap:10px}
+h1{font-family:var(--display);font-weight:800;font-size:34px;line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase}
+.sub{color:var(--muted);font-size:14px;margin:0}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs button{font:600 14px var(--text);border:0;border-radius:9px;padding:9px 2px;background:transparent;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.tabs button .tag{display:block;font:500 11px var(--text);opacity:.85}
+.today{font-size:13px;color:var(--accent);font-weight:600}
+.rules{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:14px}
+.rules ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
+.ex{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.ex-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ex h2{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.05;margin:0;text-transform:uppercase;letter-spacing:.01em}
+.ex .en{color:var(--muted);font-size:13px}
+.target{font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap;background:var(--input);border-radius:8px;padding:4px 8px}
+details{border-top:1px solid var(--line);padding-top:8px}
+summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--accent)}
+.how{display:grid;gap:6px;margin-top:8px;font-size:14px}
+.how b{font-weight:600}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.links a{font-size:13px;font-weight:600;color:var(--fg);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.last{font-size:13px;color:var(--muted)}
+.body{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center}
+.body svg{width:150px;height:auto;display:block}
+.body .sk{fill:var(--line)}
+.body .mu{fill:var(--input);stroke:var(--line);stroke-width:.6}
+.body .mu.on{fill:var(--hot);stroke:var(--hot)}
+.body .lb{font:600 9px var(--text);fill:var(--muted);text-anchor:middle}
+.mlist{font-size:14px;min-width:0}
+.last b{color:var(--fg);font-family:var(--mono);font-weight:500}
+.sets{display:grid;gap:6px}
+.set{display:grid;grid-template-columns:28px 1fr 1fr 40px;gap:6px;align-items:center}
+.set.bw{grid-template-columns:28px 1fr 40px}
+.set .n{font-family:var(--mono);color:var(--muted);font-size:13px;text-align:center}
+.set label{position:relative;display:block}
+.set input{width:100%;font:500 16px var(--mono);padding:10px 34px 10px 10px;border:1px solid var(--line);border-radius:9px;background:var(--input);color:var(--fg)}
+.set .unit{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);pointer-events:none}
+.set button{height:42px;border:1px solid var(--line);border-radius:9px;background:var(--input);color:var(--muted);font-size:18px;cursor:pointer}
+.set button[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:#fff}
+.ex-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ghost{font:600 13px var(--text);border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:9px;padding:8px 12px;cursor:pointer}
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.savebar .in{max-width:640px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.savebar .msg{flex:1;min-width:0;font-size:13px;color:var(--muted)}
+.primary{font:700 16px var(--text);border:0;border-radius:11px;padding:13px 18px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.timer{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:7;
+  background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 14px;font:700 22px var(--mono);display:flex;gap:10px;align-items:center}
+.timer button{font:600 13px var(--text);background:transparent;color:var(--bg);border:1px solid currentColor;border-radius:8px;padding:4px 8px;cursor:pointer}
+.hist{display:grid;gap:10px}
+.hist .h{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.hist .h h3{margin:0 0 6px;font-family:var(--display);font-size:20px;text-transform:uppercase}
+.hist .row{display:flex;justify-content:space-between;gap:10px;font-size:13px;border-top:1px dashed var(--line);padding-block:5px}
+.hist .row span:last-child{font-family:var(--mono);text-align:right;min-width:0}
+.empty{color:var(--muted);text-align:center;padding:30px 10px}
+button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.chip{font:600 12px var(--text);border-radius:999px;padding:4px 10px;background:var(--input);color:var(--muted);white-space:nowrap}
+.chip.ok{color:var(--good)} .chip.warn{color:var(--hot)}
+.ex.skipped{flex-direction:row;align-items:center;justify-content:space-between;padding:10px 14px;opacity:.7}
+.ex.skipped b{font-weight:600}
+.badge{display:inline-block;font:600 11px var(--text);color:var(--accent);background:var(--soft);border-radius:6px;padding:2px 6px;margin-top:4px}
+.ghost.warn{color:var(--hot);border-color:var(--hot)}
+.addbtn{font:700 16px var(--text);border:2px dashed var(--accent);background:transparent;color:var(--accent);border-radius:14px;padding:16px;cursor:pointer}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet[hidden]{display:none}
+.sheet .pane{background:var(--card);color:var(--fg);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+.sheet h3{font-family:var(--display);font-size:26px;text-transform:uppercase;margin:0}
+.sheet textarea,.sheet select{width:100%;font:500 16px var(--text);padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--input);color:var(--fg)}
+.sheet textarea{min-height:64px;resize:vertical}
+.photo{display:flex;gap:10px;align-items:center}
+.photo img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.found{border:1px solid var(--accent);border-radius:12px;padding:12px;display:grid;gap:6px;font-size:14px}
+.found h4{margin:0;font-family:var(--display);font-size:22px;text-transform:uppercase}
+.or{text-align:center;color:var(--muted);font-size:13px}
+.err{color:var(--hot);font-size:14px}
+
+body{margin:0}
+</style></head><body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="topline"><h1>Upper / Lower</h1><span class="chip" id="sync">…</span></div>
+      <p class="sub">Tot ce scrii se salvează pe loc, pe telefon.</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <button id="tab-U1" role="tab" aria-selected="true" data-view="U1">Upper 1<span class="tag" id="tagU1"></span></button>
+      <button id="tab-L1" role="tab" aria-selected="false" data-view="L1">Lower 1<span class="tag" id="tagL1"></span></button>
+      <button id="tab-U2" role="tab" aria-selected="false" data-view="U2">Upper 2<span class="tag" id="tagU2"></span></button>
+      <button id="tab-L2" role="tab" aria-selected="false" data-view="L2">Lower 2<span class="tag" id="tagL2"></span></button>
+      <button id="tab-H" role="tab" aria-selected="false" data-view="H">Istoric<span class="tag">tot</span></button>
+    </div>
+  </header>
+
+  <section class="rules" id="rules">
+    <b>Regulile simple</b>
+    <ul>
+      <li>Fiecare set: te oprești când mai poți face 1–2 repetări.</li>
+      <li>Pauză: 2–3 min la primele 3 exerciții, 1–1,5 min la restul.</li>
+      <li>Ai făcut numărul maxim de repetări la toate seturile? Data viitoare pui greutate mai mare.</li>
+      <li>Ținta: 60–75 min.</li>
+      <li><b>⇄ Schimbă</b> = faci alt exercițiu în loc. <b>Skip azi</b> = nu-l faci azi, dar rămâne în program data viitoare.</li>
+    </ul>
+  </section>
+
+  <main id="view"></main>
+</div>
+
+<div class="timer" id="timer" hidden><span id="tleft">2:00</span><button id="tstop" type="button">Stop</button></div>
+
+<div class="savebar"><div class="in">
+  <div class="msg" id="msg">Completează greutatea și repetările. La final apasă Termină.</div>
+  <button class="primary" id="save" type="button">Termină</button>
+</div></div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="pane" role="dialog" aria-modal="true" aria-labelledby="sh-title">
+    <div class="topline"><h3 id="sh-title">Adaugă exercițiu</h3><button class="ghost" type="button" id="sh-close">Închide</button></div>
+    <div id="sh-ai">
+      <div class="photo">
+        <label class="primary" style="display:inline-block;text-align:center">📷 Poză la aparat
+          <input id="sh-file" type="file" accept="image/*" capture="environment" hidden>
+        </label>
+        <img id="sh-thumb" alt="Poza aparatului" hidden>
+      </div>
+    </div>
+    <div class="or" id="sh-or">și / sau scrie</div>
+    <textarea id="sh-text" placeholder="Ex: aparat cu discuri pentru umeri, împing în sus"></textarea>
+    <button class="primary" type="button" id="sh-find">Găsește exercițiul</button>
+    <div class="or">sau alege din cele pe care le știu deja</div>
+    <select id="sh-pick"><option value="">Alege din listă…</option></select>
+    <div id="sh-status"></div>
+    <div id="sh-result"></div>
+  </div>
+</div>
+
+<script>
+const yt = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q + " how to");
+const img = q => "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(q + " gym");
+
+const LEGACY = {
+  A: [
+    {id:"pullup", ro:"Tracțiuni la bară", en:"Pull-ups", sets:3, reps:"max − 1", unit:"kg extra", rest:150, bw:true, neg:true,
+      look:"Bara fixă sus, deasupra capului. Uneori e pe un aparat mare cu mai multe bare.",
+      how:"Cu greutatea corpului, fără kg extra. Prinde bara puțin mai lat decât umerii. Trage până bărbia trece de bară, coboară încet până brațele sunt aproape drepte. După seturi fă negative la bara joasă: sari sus cu pieptul la bară, ține, coboară cât mai încet. Notează câte ai făcut.",
+      q:"pull up"},
+    {id:"chestpress", ro:"Împins la piept (aparatul cu cablu)", en:"Chest press machine", sets:3, reps:"8–12", unit:"kg", rest:150,
+      look:"Aparatul pe care scrie CHEST PRESS: scaun, spătar și două mânere în față, greutatea pe un teanc de plăci cu cablu.",
+      how:"Dacă simți mai mult umerii decât pieptul: coboară scaunul ca mânerele să fie la mijlocul pieptului (nu la umeri), lipește omoplații de spătar și trage umerii în jos, coatele puțin spre corp (nu drept în lateral), pieptul sus. Împinge, apoi revino încet până simți întinderea în piept.",
+      q:"chest press machine"},
+    {id:"legpress", ro:"Presă pentru picioare", en:"Leg press", sets:3, reps:"8–12", unit:"kg", rest:150,
+      look:"Aparat mare unde stai aproape culcat, cu picioarele pe o placă lată în fața ta. Greutatea e pe discuri pe laterale.",
+      how:"Picioarele pe placă, depărtate cât umerii. Coboară până genunchii fac cam 90°, împinge înapoi. Nu bloca genunchii sus.",
+      q:"leg press"},
+    {id:"shoulderpress", ro:"Împins umeri cu gantere", en:"Dumbbell shoulder press", sets:3, reps:"8–12", unit:"kg / ganteră", rest:90,
+      look:"Două gantere și o bancă cu spătarul ridicat drept.",
+      how:"Stai pe bancă cu spatele lipit. Ganterele la nivelul urechilor, împinge-le în sus deasupra capului, coboară încet.",
+      q:"seated dumbbell shoulder press"},
+    {id:"lateral", ro:"Ridicări laterale", en:"Lateral raises", sets:3, reps:"12–20", unit:"kg / ganteră", rest:75,
+      look:"Două gantere ușoare. Stai în picioare.",
+      how:"Brațele pe lângă corp, coatele ușor îndoite. Ridică ganterele în lateral până la nivelul umerilor, coboară încet. Greutate mică, mișcare curată. Ăsta îți lățește umerii.",
+      q:"dumbbell lateral raise"},
+    {id:"calf", ro:"Ridicări pe vârfuri", en:"Calf raises", sets:3, reps:"12–20", unit:"kg", rest:60,
+      look:"Aparat pentru gambe (stai în picioare sub perne pe umeri sau așezat cu o pernă pe genunchi), sau chiar presa pentru picioare.",
+      how:"Vârfurile pe marginea platformei, călcâiele în aer. Ridică-te cât mai sus pe vârfuri, ține o secundă, coboară încet cât mai jos.",
+      q:"calf raise machine"},
+    {id:"shrug", ro:"Ridicări de umeri cu gantere", en:"Dumbbell shrugs", sets:3, reps:"10–15", unit:"kg / gantera", rest:75,
+      look:"Două gantere grele, stai în picioare.",
+      how:"Brațele drepte pe lângă corp. Ridică umerii drept în sus spre urechi, ține 1–2 secunde sus, coboară încet. Nu roti umerii. Aici poți lua greutate mare.",
+      q:"dumbbell shrug"},
+    {id:"curl", ro:"Flexii biceps cu gantere", en:"Dumbbell biceps curl", sets:2, reps:"10–15", unit:"kg / ganteră", rest:75,
+      look:"Două gantere, în picioare sau pe bancă.",
+      how:"Coatele lipite de corp. Ridică ganterele spre umeri, coboară încet până jos. Nu legăna corpul.",
+      q:"dumbbell biceps curl"},
+    {id:"pushdown", ro:"Triceps la scripete", en:"Triceps pushdown", sets:2, reps:"10–15", unit:"kg", rest:75,
+      look:"Aparat cu cablu și scripete sus. Bara scurtă (mai ușor, mai multă greutate) sau frânghia (mai greu, mai multă întindere). Ambele sunt bune; folosește aceeași ca să compari progresul.",
+      how:"Coatele lipite de corp. Împinge bara în jos până brațele sunt drepte, revino încet până la piept.",
+      q:"cable triceps pushdown"}
+  ],
+  B: [
+    {id:"pullup", ro:"Tracțiuni la bară", en:"Pull-ups", sets:3, reps:"max − 1", unit:"kg extra", rest:150, bw:true, neg:true,
+      look:"Bara fixă sus, deasupra capului.",
+      how:"Cu greutatea corpului. Prinde bara puțin mai lat decât umerii, trage până bărbia trece de bară, coboară încet. După seturi: negative la bara joasă până nu mai poți. Notează câte.",
+      q:"pull up"},
+    {id:"incline", ro:"Împins înclinat cu gantere", en:"Incline dumbbell press", sets:3, reps:"8–12", unit:"kg / ganteră", rest:150,
+      look:"Bancă reglabilă, cu spătarul ridicat cam la 30°, și două gantere.",
+      how:"Culcat pe banca înclinată, ganterele la nivelul pieptului. Împinge-le în sus, coboară încet până simți întinderea în piept.",
+      q:"incline dumbbell press"},
+    {id:"row", ro:"Ramat la scripete jos", en:"Seated cable row", sets:3, reps:"8–12", unit:"kg", rest:150,
+      look:"Aparat jos, stai pe o bancă cu picioarele pe suport și tragi un mâner de cablu spre burtă.",
+      how:"Spatele drept. Trage mânerul spre buric, strânge omoplații, revino încet cu brațele întinse.",
+      q:"seated cable row"},
+    {id:"legext", ro:"Extensii picioare (aparat)", en:"Leg extension", sets:3, reps:"10–15", unit:"kg", rest:90,
+      look:"Scaun cu o pernă rotundă în fața gleznelor, pe care o ridici cu picioarele.",
+      how:"Spatele lipit de spătar. Ridică perna până picioarele sunt drepte, ține o secundă, coboară încet.",
+      q:"leg extension machine"},
+    {id:"rdl", ro:"Îndreptări românești cu gantere", en:"Dumbbell Romanian deadlift", sets:3, reps:"10–12", unit:"kg / gantera", rest:90,
+      look:"Două gantere, stai în picioare. Nu ai nevoie de aparat.",
+      how:"Ganterele în fața coapselor, genunchii puțin îndoiți și ținuți așa. Împinge fundul în spate și coboară ganterele pe lângă picioare, cu spatele DREPT, până simți întinderea în spatele coapsei. Ridică-te strângând fesierii. Începe ușor, 8–10 kg.",
+      q:"dumbbell romanian deadlift"},
+    {id:"lateralB", ro:"Ridicări laterale", en:"Lateral raises", sets:3, reps:"12–20", unit:"kg / ganteră", rest:75,
+      look:"Două gantere ușoare. Stai în picioare.",
+      how:"Brațele pe lângă corp, coatele ușor îndoite. Ridică în lateral până la umeri, coboară încet.",
+      q:"dumbbell lateral raise"},
+    {id:"revfly", ro:"Flutări inverse cu gantere", en:"Reverse dumbbell fly", sets:2, reps:"12–20", unit:"kg / gantera", rest:75,
+      look:"Două gantere ușoare. Stai aplecat în față sau cu pieptul sprijinit pe o bancă înclinată.",
+      how:"Aplecat, brațele atârnă în jos cu coatele puțin îndoite. Ridică ganterele în lateral ca niște aripi, strânge omoplații, coboară încet. Greutate mică (3–5 kg). Lucrează spatele umerilor.",
+      q:"bent over reverse dumbbell fly"},
+    {id:"upright", ro:"Tras la bărbie (ghiria / cablu)", en:"Upright row", sets:3, reps:"10–15", unit:"kg", rest:75,
+      look:"Ghiria mare cu un mâner, sau bara scurtă la scripetele de jos.",
+      how:"Exact ce ai făcut: ții cu ambele mâini, tragi în sus spre piept, coatele în lateral și mai sus decât mâinile. Oprește-te la nivelul pieptului (nu până la bărbie dacă te doare umărul), coboară încet.",
+      q:"kettlebell upright row"},
+    {id:"hammer", ro:"Biceps ciocan", en:"Hammer curl", sets:2, reps:"10–15", unit:"kg / ganteră", rest:75,
+      look:"Două gantere, ținute ca un ciocan (palmele spre corp).",
+      how:"Coatele lipite de corp, ridică ganterele cu palmele față în față, coboară încet.",
+      q:"dumbbell hammer curl"},
+    {id:"pushrope", ro:"Triceps la scripete cu frânghie", en:"Rope triceps pushdown", sets:3, reps:"10–15", unit:"kg", rest:75,
+      look:"Aparat cu cablu, scripetele sus, frânghia cu două capete.",
+      how:"Coatele lipite de corp. Împinge frânghia în jos și desfă-o ușor în lateral jos, revino încet.",
+      q:"rope triceps pushdown"}
+  ]
+};
+
+const pick = id => { for (const k of ["A","B"]) { const x = LEGACY[k].find(e => e.id === id); if (x) return x; } throw new Error(id); };
+const EX = {
+  bench: {id:"bench", ro:"Împins cu bara la piept", en:"Barbell bench press", sets:3, reps:"6–10", unit:"kg", rest:150,
+    look:"Banca plată cu suportul pentru bară deasupra capului. Bara olimpică goală are 20 kg.",
+    how:"Culcat, ochii sub bară, omoplații strânși și lipiți de bancă, tălpile pe podea. Prinde bara puțin mai lat decât umerii. Coboar-o controlat până atinge ușor pieptul (la nivelul mameloanelor), coatele la ~45° de corp, apoi împinge. Primele dăți: doar bara sau bara + 2×5 kg, și roagă pe cineva să te asigure.",
+    q:"barbell bench press"},
+  squat: {id:"squat", ro:"Genuflexiuni cu bara", en:"Barbell back squat", sets:3, reps:"6–10", unit:"kg", rest:150,
+    look:"Rack-ul (cușca) cu suporturi pentru bară la nivelul umerilor.",
+    how:"Bara pe trapez (nu pe gât), picioarele puțin mai lat decât umerii, vârfurile ușor în afară. Pieptul sus, burta strânsă. Coboară ca și cum te așezi pe un scaun, genunchii în direcția vârfurilor, până coapsele sunt paralele cu podeaua. Ridică-te împingând prin călcâie. Începe cu bara goală (20 kg) ca să înveți mișcarea, pune barele de siguranță la nivelul potrivit.",
+    q:"barbell back squat"},
+  backext: {id:"backext", ro:"Hiperextensii (spate jos)", en:"Back extension", sets:3, reps:"12–15", unit:"kg disc", rest:75,
+    look:"Banca înclinată la 45° unde îți prinzi picioarele sub perne și te apleci în față peste o pernă la nivelul șoldurilor.",
+    how:"Mâinile încrucișate pe piept. Coboară trunchiul controlat, apoi ridică-te până corpul e în linie dreaptă (nu mai sus, nu te arcui pe spate). Când e ușor, ține un disc de 5–10 kg la piept. Ăsta îți face spatele jos puternic, ca să poți ridica pe cineva fără probleme.",
+    q:"45 degree back extension"},
+  legraise: {id:"legraise", ro:"Ridicări de picioare la bară", en:"Hanging leg raises", sets:3, reps:"max", unit:"", rest:75, bw:true,
+    look:"Bara de tracțiuni.",
+    how:"Atârnă de bară. Ridică genunchii spre piept (mai ușor) sau picioarele drepte până la 90° (mai greu). Fără să te balansezi, coboară încet. Lucrează abdomenul de jos.",
+    q:"hanging knee raise"},
+  cablecrunch: {id:"cablecrunch", ro:"Abdomene la scripete", en:"Cable crunch", sets:3, reps:"12–15", unit:"kg", rest:75,
+    look:"Aparatul cu cablu, scripetele sus, frânghia.",
+    how:"Îngenunchează cu fața la aparat, frânghia ținută lângă cap. Rulează trunchiul în jos, ca și cum ai vrea să-ți atingi genunchii cu coatele, strânge abdomenul, revino încet. Șoldurile stau pe loc, se mișcă doar spatele. Așa crești pătrățelele: abdomen cu greutate, ca orice alt mușchi.",
+    q:"cable crunch"},
+  pecfly: {id:"pecfly", ro:"Fluturări la piept (aparat)", en:"Pec deck fly", sets:3, reps:"10–15", unit:"kg", rest:75,
+    look:"Aparatul la care stai pe scaun și aduci brațele din lateral în față (același aparat se folosește invers pentru umeri spate).",
+    how:"Spatele lipit de spătar, coatele puțin îndoite. Adu mânerele în față până aproape se ating, strânge pieptul o secundă, revino încet până simți întinderea.",
+    q:"pec deck fly machine"},
+  revpec: {id:"revpec", ro:"Fluturări inverse la aparat (umeri spate)", en:"Reverse pec deck", sets:3, reps:"12–20", unit:"kg", rest:75,
+    look:"Același aparat de fluturări, dar stai cu pieptul spre spătar și mânerele în față.",
+    how:"Brațele drepte în față, împinge-le în lateral și în spate până sunt în linie cu umerii, revino încet. Greutate mică. Face umerii rotunzi din toate părțile și ajută postura. E exercițiul pe care l-ai făcut deja.",
+    q:"reverse pec deck rear delt"},
+  cablecurl: {id:"cablecurl", ro:"Flexii biceps la scripete", en:"Cable biceps curl", sets:3, reps:"10–12", unit:"kg", rest:75,
+    look:"Aparatul cu cablu, scripetele jos, bara scurtă.",
+    how:"Coatele lipite de corp. Trage bara spre umeri, strânge bicepsul sus, coboară încet până jos.",
+    q:"cable biceps curl"}
+};
+const P = id => EX[id] || pick(id);
+const lateralFix = Object.assign({}, pick("lateral"), {how:"Ca să simți UMĂRUL, nu spatele: ia mai puțin (4–5 kg). Apleacă-te puțin în față, coatele ușor îndoite, și ridică ganterele în lateral ca și cum ai împinge cu COATELE spre pereți, nu cu mâinile în sus. Oprește-te la nivelul umerilor, nu ridica umerii spre urechi (aia e trapez). Coboară în 2–3 secunde. Dacă simți arsură pe partea laterală a umărului, e corect."});
+const pushAny = Object.assign({}, pick("pushdown"), {ro:"Triceps la scripete (bară sau frânghie)", look:"Aparatul cu cablu, scripetele sus. Folosește ce e liber: bara scurtă sau frânghia. Notează în ce ai făcut dacă vrei."});
+const overheadT = Object.assign({}, {id:"overhead", en:"Overhead triceps extension", reps:"10–15", unit:"kg", rest:75, look:"Aparatul cu cablu (scripete jos sau la mijloc) cu frânghia, sau o ganteră ținută cu ambele mâini.", q:"cable overhead triceps extension"}, {sets:2, ro:"Triceps peste cap (la final)", how:"După triceps la scripete, ca să-l termini. Cablul cu frânghia sau o ganteră: greutatea deasupra capului, coboar-o în spatele capului îndoind doar coatele, apoi împinge sus."});
+const NEWPLAN = {
+  U1: [P("pullup"), EX.bench, P("row"), P("shoulderpress"), lateralFix, EX.cablecurl, pushAny, overheadT],
+  L1: [EX.squat, P("legpress"), P("legext"), P("calf"), EX.backext, EX.legraise, P("shrug")],
+  U2: [P("pullup"), P("chestpress"), P("incline"), EX.pecfly, EX.revpec, Object.assign({}, lateralFix), P("hammer"), pushAny, overheadT],
+  L2: [P("legpress"), P("legext"), P("calf"), EX.backext, EX.cablecrunch, P("upright"), P("shrug")]
+};
+const PLAN = Object.assign({}, LEGACY, NEWPLAN);
+const ORDER = ["U1","L1","U2","L2"];
+const DAYNAME = {U1:"Upper 1", L1:"Lower 1", U2:"Upper 2", L2:"Lower 2", A:"Ziua A (vechi)", B:"Ziua B (vechi)"};
+
+const MUSCLES = {pullup:["lats","upperback","biceps"], chestpress:["chest","frontdelt","triceps"], legpress:["quads","glutes"], shoulderpress:["frontdelt","sidedelt","triceps"], lateral:["sidedelt"], shrug:["traps"], upright:["traps","sidedelt"], calf:["calves"], curl:["biceps"], pushdown:["triceps"], latpull:["lats","biceps"], incline:["chest","frontdelt","triceps"], row:["upperback","lats","reardelt","biceps","traps"], legext:["quads"], legcurl:["hamstrings"], lateralB:["sidedelt"], facepull:["reardelt","upperback","traps"], hammer:["biceps","forearms"], overhead:["triceps"], bench:["chest","frontdelt","triceps"], squat:["quads","glutes","lowerback"], backext:["lowerback","glutes","hamstrings"], legraise:["abs"], cablecrunch:["abs"], pecfly:["chest"], revpec:["reardelt","upperback"], cablecurl:["biceps"], rdl:["hamstrings","glutes"], revfly:["reardelt","upperback"], pushrope:["triceps"]};
+const MNAME = {abs:"abdomen", lowerback:"spate jos (lombar)", traps:"trapez", lats:"spate lat", upperback:"spate sus", biceps:"biceps", triceps:"triceps", chest:"piept", frontdelt:"umăr față", sidedelt:"umăr lateral", reardelt:"umăr spate", quads:"fața coapsei", hamstrings:"spatele coapsei", glutes:"fesieri", calves:"gambe", forearms:"antebraț"};
+function bodySVG(ms){
+  const on = m => ms.includes(m) ? 'class="mu on"' : 'class="mu"';
+  const fig = (cx, back) => {
+    let s = `<circle class="sk" cx="${cx}" cy="14" r="9"/><rect class="sk" x="${cx-4}" y="21" width="8" height="7"/>` +
+      `<rect class="sk" x="${cx-17}" y="26" width="34" height="50" rx="8"/>` +
+      `<rect class="sk" x="${cx-27}" y="28" width="9" height="31" rx="4"/><rect class="sk" x="${cx+18}" y="28" width="9" height="31" rx="4"/>` +
+      `<rect class="sk" x="${cx-28}" y="60" width="8" height="28" rx="4"/><rect class="sk" x="${cx+20}" y="60" width="8" height="28" rx="4"/>` +
+      `<rect class="sk" x="${cx-16}" y="72" width="32" height="18" rx="6"/>` +
+      `<rect class="sk" x="${cx-15}" y="88" width="13" height="50" rx="6"/><rect class="sk" x="${cx+2}" y="88" width="13" height="50" rx="6"/>` +
+      `<rect class="sk" x="${cx-14}" y="139" width="11" height="42" rx="5"/><rect class="sk" x="${cx+3}" y="139" width="11" height="42" rx="5"/>`;
+    s += `<circle ${on("sidedelt")} cx="${cx-24}" cy="31" r="4.5"/><circle ${on("sidedelt")} cx="${cx+24}" cy="31" r="4.5"/>` +
+      `<polygon ${on("traps")} points="${cx-4},20 ${cx-4},29 ${cx-16},28"/><polygon ${on("traps")} points="${cx+4},20 ${cx+4},29 ${cx+16},28"/>`;
+    if (!back) {
+      s += `<circle ${on("frontdelt")} cx="${cx-18}" cy="32" r="5"/><circle ${on("frontdelt")} cx="${cx+18}" cy="32" r="5"/>` +
+        `<rect ${on("chest")} x="${cx-14}" y="31" width="13" height="13" rx="4"/><rect ${on("chest")} x="${cx+1}" y="31" width="13" height="13" rx="4"/>` +
+        `<ellipse ${on("biceps")} cx="${cx-22.5}" cy="46" rx="3.8" ry="9"/><ellipse ${on("biceps")} cx="${cx+22.5}" cy="46" rx="3.8" ry="9"/>` +
+        `<ellipse ${on("forearms")} cx="${cx-24}" cy="70" rx="3.3" ry="9"/><ellipse ${on("forearms")} cx="${cx+24}" cy="70" rx="3.3" ry="9"/>` +
+        `<rect ${on("abs")} x="${cx-7}" y="47" width="14" height="23" rx="4"/>` +
+        `<ellipse ${on("quads")} cx="${cx-8.5}" cy="110" rx="5.5" ry="18"/><ellipse ${on("quads")} cx="${cx+8.5}" cy="110" rx="5.5" ry="18"/>`;
+    } else {
+      s += `<circle ${on("reardelt")} cx="${cx-18}" cy="32" r="5"/><circle ${on("reardelt")} cx="${cx+18}" cy="32" r="5"/>` +
+        `<rect ${on("upperback")} x="${cx-11}" y="28" width="22" height="13" rx="4"/>` +
+        `<polygon ${on("lats")} points="${cx-16},41 ${cx-3},42 ${cx-5},68 ${cx-14},60"/><polygon ${on("lats")} points="${cx+16},41 ${cx+3},42 ${cx+5},68 ${cx+14},60"/>` +
+        `<ellipse ${on("triceps")} cx="${cx-22.5}" cy="46" rx="3.8" ry="9"/><ellipse ${on("triceps")} cx="${cx+22.5}" cy="46" rx="3.8" ry="9"/>` +
+        `<rect ${on("lowerback")} x="${cx-6}" y="60" width="12" height="13" rx="3"/>` +
+        `<ellipse ${on("forearms")} cx="${cx-24}" cy="70" rx="3.3" ry="9"/><ellipse ${on("forearms")} cx="${cx+24}" cy="70" rx="3.3" ry="9"/>` +
+        `<ellipse ${on("glutes")} cx="${cx-7.5}" cy="82" rx="7" ry="7"/><ellipse ${on("glutes")} cx="${cx+7.5}" cy="82" rx="7" ry="7"/>` +
+        `<ellipse ${on("hamstrings")} cx="${cx-8.5}" cy="112" rx="5.5" ry="17"/><ellipse ${on("hamstrings")} cx="${cx+8.5}" cy="112" rx="5.5" ry="17"/>` +
+        `<ellipse ${on("calves")} cx="${cx-8.5}" cy="153" rx="5" ry="12"/><ellipse ${on("calves")} cx="${cx+8.5}" cy="153" rx="5" ry="12"/>`;
+    }
+    return s;
+  };
+  return `<svg viewBox="0 0 200 196" role="img" aria-label="Mușchi lucrați: ${ms.map(m=>MNAME[m]).join(', ')}">${fig(50,false)}${fig(150,true)}<text x="50" y="194" class="lb">față</text><text x="150" y="194" class="lb">spate</text></svg>`;
+}
+
+/* ---------- exercise library ---------- */
+const LIB = {};
+for (const k of ["A","B"]) for (const x of LEGACY[k]) LIB[x.id] = Object.assign({muscles: MUSCLES[x.id] || []}, x);
+for (const x of Object.values(EX)) LIB[x.id] = Object.assign({muscles: MUSCLES[x.id] || []}, x);
+LIB.lateral = Object.assign({}, lateralFix, {muscles:["sidedelt"],
+  how:"Greutate MICĂ: 2.5–4 kg și 15–20 repetări. Apleacă-te puțin în față, coatele ușor îndoite, ridică în lateral împingând cu COATELE spre pereți, până la nivelul umerilor. Nu ridica umerii spre urechi (aia e trapez). Coboară încet, 2–3 secunde. Arsura pe partea laterală a umărului = corect."});
+LIB.lateral.reps = "15–20";
+LIB.pushdown = Object.assign({}, pushAny, {muscles:["triceps"]});
+LIB.overhead = Object.assign({}, overheadT, {sets:3, muscles:["triceps"]});
+LIB.curl = Object.assign({}, LIB.curl, {sets:3});
+LIB.platerow = {id:"platerow", ro:"Ramat la aparat cu discuri", en:"Plate-loaded seated row", sets:3, reps:"8–12", unit:"kg", rest:120, muscles:["upperback","lats","reardelt","biceps"],
+  look:"Aparat cu discuri, stai pe scaun cu pieptul pe pernă și tragi două mânere spre tine. Pe el scrie ROW.",
+  how:"Pieptul lipit de pernă tot timpul. Trage cu COATELE spre spate, pe lângă corp, strânge omoplații o secundă, apoi întinde brațele încet. Mânerele verticale = mai mult dorsali, orizontale = mai mult mijlocul spatelui.",
+  q:"plate loaded seated row"};
+LIB.platepress = {id:"platepress", ro:"Presă umeri la aparat cu discuri", en:"Plate-loaded shoulder press", sets:3, reps:"8–12", unit:"kg", rest:120, muscles:["frontdelt","sidedelt","triceps"],
+  look:"Aparat cu discuri, stai pe scaun și împingi două mânere în sus deasupra capului.",
+  how:"Spatele lipit de spătar, mânerele pornesc la nivelul umerilor. Împinge în sus fără să blochezi coatele, coboară încet până la umeri.",
+  q:"plate loaded shoulder press"};
+
+const DEFAULT_DAYS = {
+  U1:["pullup","bench","platerow","platepress","lateral","curl","pushdown","overhead"],
+  L1:["squat","legpress","legext","calf","backext","legraise","shrug"],
+  U2:["pullup","chestpress","incline","pecfly","revpec","lateral","hammer","pushdown","overhead"],
+  L2:["legpress","legext","calf","backext","cablecrunch","upright","shrug"]
+};
+const MUSCLE_KEYS = Object.keys(MNAME);
+
+/* ---------- state ---------- */
+let view = "U1";
+let history = [];
+let plan = {days: JSON.parse(JSON.stringify(DEFAULT_DAYS)), custom: {}, ts: 0};
+let drafts = {};   // day -> {list, skip:{}, sets:{id:[{w,r,done}]}, neg:{}, today:{}, started, ts}
+let db = null, sample = null, canImages = false;
+
+const ex = id => plan.custom[id] || LIB[id] || {id, ro:id, en:"", sets:3, reps:"8–12", unit:"kg", rest:90, muscles:[], look:"", how:"", q:id};
+const fmtDate = d => new Date(d).toLocaleDateString("ro-RO", {weekday:"short", day:"numeric", month:"short"});
+const todayKey = () => { const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fmtSets = s => s.map(v => (v.w != null && v.w !== "" ? v.w + "×" : "") + (v.r != null && v.r !== "" ? v.r : "–")).join("  ");
+
+function lastFor(id){ for (const h of history){ const s = h.exercises && h.exercises[id]; if (s && s.length) return {h, s}; } return null; }
+function nextDay(){ const h = history.find(x => ORDER.includes(x.day)); return h ? ORDER[(ORDER.indexOf(h.day) + 1) % ORDER.length] : "U1"; }
+
+function draftFor(day){
+  let d = drafts[day];
+  if (!d) d = drafts[day] = {list: plan.days[day].slice(), skip:{}, sets:{}, neg:{}, today:{}, started:null, ts:0};
+  for (const id of d.list) if (!d.sets[id]) d.sets[id] = Array.from({length: ex(id).sets || 3}, () => ({w:"", r:"", done:false}));
+  return d;
+}
+function hasData(d){ return d && Object.values(d.sets).some(a => a.some(s => s.w !== "" || s.r !== "")); }
+
+/* ---------- saving ---------- */
+const syncEl = () => document.getElementById("sync");
+function setSync(t, cls){ const e = syncEl(); e.textContent = t; e.className = "chip " + (cls || ""); }
+function saveLocal(){
+  try { localStorage.setItem("ul-drafts", JSON.stringify(drafts)); localStorage.setItem("ul-plan", JSON.stringify(plan)); localStorage.setItem("ul-history", JSON.stringify(history)); } catch(e){}
+}
+const dirtyDays = new Set(); let planDirty = false, saveT = null;
+function touch(day){
+  if (day) { const d = drafts[day]; d.ts = Date.now(); if (!d.started) d.started = new Date().toISOString(); dirtyDays.add(day); }
+  saveLocal(); setSync("se salvează…");
+  clearTimeout(saveT); saveT = setTimeout(flush, 600);
+}
+function touchPlan(){ plan.ts = Date.now(); planDirty = true; touch(null); }
+async function flush(){
+  clearTimeout(saveT);
+  if (!db) { setSync("✓ salvat", "ok"); return; }
+  try {
+    for (const day of [...dirtyDays]) { dirtyDays.delete(day); await db.doc("drafts/" + day).set({json: JSON.stringify(drafts[day]), ts: drafts[day].ts}); }
+    if (planDirty) { planDirty = false; await db.doc("config/plan").set({json: JSON.stringify(plan), ts: plan.ts}); }
+    setSync("✓ salvat", "ok");
+  } catch(e){ setSync("salvat doar pe telefon", "warn"); }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
+window.addEventListener("pagehide", flush);
+
+/* ---------- dom helper ---------- */
+function el(tag, attrs, ...kids){
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs||{})) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const c of kids) if (c != null) e.append(c);
+  return e;
+}
+
+/* ---------- render ---------- */
+function render(){
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.view === view));
+  const nd = nextDay();
+  for (const k of ORDER) document.getElementById("tag" + k).textContent = nd === k ? "la rând" : "";
+  document.getElementById("rules").hidden = view === "H";
+  document.querySelector(".savebar").hidden = view === "H";
+  const root = document.getElementById("view"); root.replaceChildren();
+  if (view === "H") return renderHistory(root);
+
+  const d = draftFor(view);
+  const box = el("div", {class:"wrap", style:"gap:12px"});
+  if (d.started && hasData(d)) box.append(el("div", {class:"last"}, "Început: " + fmtDate(d.started) + " · ",
+    el("button", {class:"ghost", type:"button", text:"Golește ziua", onclick: (e) => {
+      if (e.target.dataset.sure) { delete drafts[view]; draftFor(view); dirtyDays.add(view); drafts[view].ts = Date.now(); touch(null); render(); }
+      else { e.target.dataset.sure = "1"; e.target.textContent = "Sigur? Apasă iar"; e.target.classList.add("warn"); }
+    }})));
+
+  d.list.forEach((id, i) => box.append(d.skip[id] ? skippedCard(d, id) : card(d, id, i)));
+  box.append(el("button", {class:"addbtn", type:"button", text:"+ Adaugă exercițiu", onclick: () => openSheet({mode:"add"})}));
+  box.append(el("article", {class:"ex"},
+    el("div", {class:"ex-top"},
+      el("div", {style:"min-width:0"}, el("h2", {text:"Final: planșă"}), el("div", {class:"en", text:"Plank + stretching ușor"})),
+      el("div", {class:"target", text:"1 min"})),
+    el("div", {class:"ex-actions"}, el("button", {class:"primary", type:"button", text:"Pornește 1 min", onclick: () => startTimer(60)}))));
+  root.append(box);
+}
+
+function skippedCard(d, id){
+  return el("article", {class:"ex skipped"},
+    el("div", {}, el("b", {text: ex(id).ro}), el("div", {class:"en", text:"Sărit azi · rămâne în program"})),
+    el("button", {class:"ghost", type:"button", text:"Anulează", onclick: () => { delete d.skip[id]; touch(view); render(); }}));
+}
+
+function card(d, id, i){
+  const x = ex(id), last = lastFor(id), sets = d.sets[id];
+  const ms = x.muscles || [];
+  const c = el("article", {class:"ex"},
+    el("div", {class:"ex-top"},
+      el("div", {style:"min-width:0"},
+        el("h2", {text: x.ro}),
+        el("div", {class:"en", text: x.en}),
+        d.today[id] ? el("span", {class:"badge", text: d.today[id]}) : null),
+      el("div", {class:"target", text: (x.sets || 3) + " × " + (x.reps || "8–12")})),
+    (() => { const b = el("div", {class:"body"}); b.innerHTML = bodySVG(ms); b.append(el("div", {class:"mlist"}, el("b", {text:"Lucrează: "}), ms.length ? ms.map(m => MNAME[m]).join(", ") : "—")); return b; })(),
+    last ? el("div", {class:"last"}, "Data trecută (" + fmtDate(last.h.date) + "): ", el("b", {text: fmtSets(last.s)}))
+         : el("div", {class:"last", text:"Prima dată: alege o greutate ușoară și vezi cum merge."}),
+    (x.look || x.how) ? el("details", {},
+      el("summary", {text:"Cum arată și cum se face"}),
+      el("div", {class:"how"},
+        x.look ? el("div", {}, el("b", {text:"Ce cauți: "}), x.look) : null,
+        x.how ? el("div", {}, el("b", {text:"Cum se face: "}), x.how) : null,
+        el("div", {class:"links"},
+          el("a", {href: yt(x.q || x.en || x.ro), target:"_blank", rel:"noopener", text:"▶ Video"}),
+          el("a", {href: img(x.q || x.en || x.ro), target:"_blank", rel:"noopener", text:"Poze aparat"})))) : null);
+
+  const box = el("div", {class:"sets"});
+  sets.forEach((s, k) => {
+    const prev = last && last.s[k];
+    const w = el("input", {type:"number", inputmode:"decimal", step:"0.5", min:"0", placeholder: prev && prev.w != null ? String(prev.w) : "", "aria-label": `Set ${k+1} greutate`});
+    w.value = s.w; w.addEventListener("input", () => { s.w = w.value; touch(view); });
+    const r = el("input", {type:"number", inputmode:"numeric", min:"0", placeholder: prev && prev.r != null ? String(prev.r) : "", "aria-label": `Set ${k+1} repetări`});
+    r.value = s.r; r.addEventListener("input", () => { s.r = r.value; touch(view); });
+    const ok = el("button", {type:"button", "aria-pressed": String(!!s.done), "aria-label": `Set ${k+1} gata`, text:"✓"});
+    ok.addEventListener("click", () => { s.done = !s.done; ok.setAttribute("aria-pressed", String(s.done)); touch(view); if (s.done) startTimer(x.rest || 90); });
+    box.append(x.bw
+      ? el("div", {class:"set bw"}, el("span", {class:"n", text: String(k+1)}), el("label", {}, r, el("span", {class:"unit", text:"rep"})), ok)
+      : el("div", {class:"set"}, el("span", {class:"n", text: String(k+1)}), el("label", {}, w, el("span", {class:"unit", text:"kg"})), el("label", {}, r, el("span", {class:"unit", text:"rep"})), ok));
+  });
+  if (x.neg) {
+    const lastNeg = (history.find(h => h.neg && h.neg[id] != null) || {}).neg;
+    const ni = el("input", {type:"number", inputmode:"numeric", min:"0", placeholder: lastNeg ? String(lastNeg[id]) : "", "aria-label":"Negative făcute"});
+    ni.value = d.neg[id] || "";
+    ni.addEventListener("input", () => { d.neg[id] = ni.value; touch(view); });
+    box.append(el("div", {class:"set bw"}, el("span", {class:"n", text:"N"}), el("label", {}, ni, el("span", {class:"unit", text:"negative"})), el("span", {})));
+  }
+  const inPlan = plan.days[view].includes(id);
+  c.append(box, el("div", {class:"ex-actions"},
+    el("button", {class:"ghost", type:"button", text:"+ set", onclick: () => { sets.push({w:"", r:"", done:false}); touch(view); render(); }}),
+    el("button", {class:"ghost", type:"button", text:"− set", onclick: () => { if (sets.length > 1) { sets.pop(); touch(view); render(); } }}),
+    el("button", {class:"ghost", type:"button", text:"Pauză", onclick: () => startTimer(x.rest || 90)}),
+    el("button", {class:"ghost", type:"button", text:"⇄ Schimbă", onclick: () => openSheet({mode:"swap", id})}),
+    el("button", {class:"ghost", type:"button", text: inPlan ? "Skip azi" : "Scoate", onclick: () => {
+      if (inPlan) d.skip[id] = true; else { d.list = d.list.filter(v => v !== id); delete d.today[id]; }
+      touch(view); render(); }}),
+    inPlan ? el("button", {class:"ghost", type:"button", text:"🗑 Din program", onclick: (e) => {
+      if (!e.target.dataset.sure) { e.target.dataset.sure = "1"; e.target.textContent = "Sigur? Dispare din " + DAYNAME[view]; e.target.classList.add("warn"); return; }
+      plan.days[view] = plan.days[view].filter(v => v !== id); d.list = d.list.filter(v => v !== id); touchPlan(); touch(view); render(); }}) : null));
+  return c;
+}
+
+function renderHistory(root){
+  root.append(el("div", {class:"ex-actions", style:"margin-bottom:10px"},
+    el("button", {class:"ghost", type:"button", text:"📋 Copiază backup (trimite-l lui Claude)", onclick: async (e) => {
+      const txt = JSON.stringify({history, plan});
+      try { await navigator.clipboard.writeText(txt); e.target.textContent = "✓ Copiat. Lipește-l în chat"; }
+      catch(_) { const t = el("textarea", {style:"width:100%;height:120px"}); t.value = txt; e.target.after(t); t.select(); }
+    }}),
+    el("button", {class:"ghost", type:"button", text:"Importă", onclick: () => {
+      const t = el("textarea", {style:"width:100%;height:100px", placeholder:"Lipește aici backup-ul"});
+      const ok = el("button", {class:"primary", type:"button", text:"Încarcă", onclick: () => {
+        try { const v = JSON.parse(t.value); if (Array.isArray(v.history)) { const m = new Map(history.map(h => [h.id, h])); v.history.forEach(h => m.set(h.id, h)); history = [...m.values()].sort((a,b) => b.date.localeCompare(a.date)); }
+          if (v.plan && v.plan.days) plan = v.plan; saveLocal(); render(); } catch(_) { ok.textContent = "Text greșit"; } }});
+      root.prepend(t, ok);
+    }})));
+  if (!history.length) { root.append(el("div", {class:"empty", text:"Încă nu ai salvat niciun antrenament."})); return; }
+  const list = el("div", {class:"hist"});
+  for (const h of history) {
+    const box = el("div", {class:"h"}, el("h3", {text: (DAYNAME[h.day] || h.day) + " · " + fmtDate(h.date)}));
+    for (const [id, s] of Object.entries(h.exercises || {})) {
+      if (!s || !s.length) continue;
+      const name = (h.names && h.names[id]) || ex(id).ro;
+      box.append(el("div", {class:"row"}, el("span", {text:name}), el("span", {text: fmtSets(s)})));
+    }
+    if (h.neg) for (const [k, v] of Object.entries(h.neg)) box.append(el("div", {class:"row"}, el("span", {text:"Negative"}), el("span", {text: String(v)})));
+    if (h.note) box.append(el("div", {class:"row"}, el("span", {text:"Notă"}), el("span", {text: h.note})));
+    list.append(box);
+  }
+  root.append(list);
+}
+
+/* ---------- timer ---------- */
+let tInt = null;
+function startTimer(sec){
+  clearInterval(tInt);
+  const end = Date.now() + sec*1000, t = document.getElementById("timer"), left = document.getElementById("tleft");
+  t.hidden = false;
+  const tick = () => { const s = Math.max(0, Math.round((end - Date.now())/1000)); left.textContent = Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); if (!s) { clearInterval(tInt); left.textContent = "Gata!"; setTimeout(() => t.hidden = true, 4000); } };
+  tick(); tInt = setInterval(tick, 500);
+}
+document.getElementById("tstop").addEventListener("click", () => { clearInterval(tInt); document.getElementById("timer").hidden = true; });
+
+/* ---------- add / swap sheet ---------- */
+const $ = id => document.getElementById(id);
+let sheetCtx = null, photo = null;
+function openSheet(ctx){
+  sheetCtx = ctx; photo = null;
+  $("sh-title").textContent = ctx.mode === "swap" ? "În loc de: " + ex(ctx.id).ro : "Adaugă exercițiu";
+  $("sh-text").value = ""; $("sh-thumb").hidden = true; $("sh-status").replaceChildren(); $("sh-result").replaceChildren();
+  $("sh-ai").hidden = !(sample && canImages); $("sh-or").textContent = sample && canImages ? "și / sau scrie" : "scrie cum se numește";
+  const sel = $("sh-pick"); sel.replaceChildren(el("option", {value:"", text:"Alege din listă…"}));
+  const all = Object.assign({}, LIB, plan.custom);
+  Object.values(all).sort((a,b) => a.ro.localeCompare(b.ro, "ro")).forEach(x => sel.append(el("option", {value:x.id, text:x.ro})));
+  $("sheet").hidden = false;
+}
+function closeSheet(){ $("sheet").hidden = true; sheetCtx = null; }
+$("sh-close").addEventListener("click", closeSheet);
+$("sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
+
+async function shrink(file){
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement("canvas"); cv.width = Math.round(bmp.width*k); cv.height = Math.round(bmp.height*k);
+  cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+  return await new Promise(res => cv.toBlob(res, "image/jpeg", 0.85));
+}
+$("sh-file").addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try { photo = await shrink(f); } catch(_) { photo = f; }
+  $("sh-thumb").src = URL.createObjectURL(photo); $("sh-thumb").hidden = false;
+});
+$("sh-pick").addEventListener("change", e => { if (e.target.value) showResult(ex(e.target.value)); });
+
+$("sh-find").addEventListener("click", async () => {
+  const text = $("sh-text").value.trim(), st = $("sh-status");
+  st.replaceChildren(); $("sh-result").replaceChildren();
+  if (!text && !photo) { st.append(el("div", {class:"err", text:"Fă o poză sau scrie ce exercițiu e."})); return; }
+  if (!sample) { // no AI here: create a plain card from the name
+    showResult({id:"c_" + Date.now().toString(36), ro:text, en:"", sets:3, reps:"8–12", unit:"kg", rest:90, muscles:[], look:"", how:"", q:text, custom:true});
+    return;
+  }
+  st.append(el("div", {class:"last", text:"Mă uit… (câteva secunde)"}));
+  const known = Object.values(Object.assign({}, LIB, plan.custom)).map(x => x.id + " = " + x.en + " / " + x.ro).join("\n");
+  const prompt = `You identify gym exercises for a beginner-intermediate lifter. ${photo ? "A photo of the gym machine/equipment is attached. " : ""}User's description (may be Romanian, may be empty): "${text}".
+Known exercises (id = English / Romanian):
+${known}
+If it is clearly the same exercise as a known one, set "match" to that id. Otherwise "match": null and describe a new exercise.
+Reply ONLY with JSON: {"match": string|null, "ro": Romanian name, "en": English name, "muscles": array from ${JSON.stringify(MUSCLE_KEYS)}, "sets": 3, "reps": e.g. "8–12", "bw": true if bodyweight only, "rest": seconds, "look": 1 sentence in Romanian describing the machine/equipment, "how": 2-3 short sentences in Romanian on correct technique and common mistakes, "q": short English search query}`;
+  try {
+    const opts = {modelTier:"default"}; if (photo && canImages) opts.images = [photo];
+    const r = await sample.json(prompt, opts);
+    st.replaceChildren();
+    if (r && r.match && (LIB[r.match] || plan.custom[r.match])) return showResult(ex(r.match));
+    const muscles = Array.isArray(r.muscles) ? r.muscles.filter(m => MUSCLE_KEYS.includes(m)) : [];
+    showResult({id:"c_" + (String(r.en||r.ro||"ex").toLowerCase().replace(/[^a-z0-9]+/g,"").slice(0,16)) + Date.now().toString(36).slice(-4),
+      ro: String(r.ro || text || "Exercițiu nou"), en: String(r.en || ""), muscles, sets: Number(r.sets) || 3, reps: String(r.reps || "8–12"),
+      unit: r.bw ? "" : "kg", bw: !!r.bw, rest: Number(r.rest) || 90, look: String(r.look || ""), how: String(r.how || ""), q: String(r.q || r.en || text), custom:true});
+  } catch(e) {
+    st.replaceChildren(el("div", {class:"err", text: e && e.code === "not_granted" ? "N-ai permis întrebările către Claude. Alege din listă sau scrie numele și apasă iar." : "N-am reușit acum. Încearcă iar sau alege din listă."}));
+    if (e && e.code === "not_granted") sample = null;
+  }
+});
+
+function showResult(x){
+  const res = $("sh-result"); res.replaceChildren();
+  const swap = sheetCtx && sheetCtx.mode === "swap";
+  res.append(el("div", {class:"found"},
+    el("h4", {text: x.ro}), x.en ? el("div", {class:"en", text: x.en}) : null,
+    el("div", {}, el("b", {text:"Lucrează: "}), (x.muscles || []).map(m => MNAME[m]).join(", ") || "—"),
+    el("div", {}, el("b", {text:"Seturi: "}), (x.sets || 3) + " × " + (x.reps || "8–12")),
+    x.how ? el("div", {class:"last", text: x.how}) : null,
+    el("div", {class:"row2"},
+      el("button", {class:"ghost", type:"button", text: swap ? "Doar azi" : "Doar azi", onclick: () => apply(x, false)}),
+      el("button", {class:"primary", type:"button", text: swap ? "Mereu în loc" : "Pune-l în program", onclick: () => apply(x, true)}))));
+}
+
+function apply(x, permanent){
+  if (x.custom || !LIB[x.id]) { const c = Object.assign({}, x); delete c.custom; plan.custom[x.id] = c; planDirty = true; }
+  const d = draftFor(view), id = x.id;
+  if (sheetCtx.mode === "swap") {
+    const old = sheetCtx.id, i = d.list.indexOf(old);
+    if (d.list.includes(id) && id !== old) d.list.splice(i, 1); else d.list[i] = id;
+    if (permanent) { const p = plan.days[view], j = p.indexOf(old); if (j >= 0) { if (p.includes(id)) p.splice(j,1); else p[j] = id; } else if (!p.includes(id)) p.push(id); planDirty = true; delete d.today[id]; }
+    else d.today[id] = "azi în loc de " + ex(old).ro;
+  } else {
+    if (!d.list.includes(id)) d.list.push(id);
+    delete d.skip[id];
+    if (permanent) { if (!plan.days[view].includes(id)) plan.days[view].push(id); planDirty = true; delete d.today[id]; }
+    else d.today[id] = "doar azi";
+  }
+  draftFor(view);
+  if (planDirty) plan.ts = Date.now();
+  touch(view); closeSheet(); render();
+}
+
+/* ---------- finish workout ---------- */
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => { view = b.dataset.view; render(); window.scrollTo(0,0); }));
+$("save").addEventListener("click", async () => {
+  const msg = $("msg"), d = draftFor(view);
+  const exercises = {}, names = {};
+  for (const id of d.list) {
+    if (d.skip[id]) continue;
+    const done = (d.sets[id] || []).filter(s => s.r !== "" || s.w !== "").map(s => ({w: s.w === "" ? null : Number(s.w), r: s.r === "" ? null : Number(s.r)}));
+    if (done.length) { exercises[id] = done; names[id] = ex(id).ro; }
+  }
+  if (!Object.keys(exercises).length) { msg.textContent = "Nu ai completat nimic încă."; return; }
+  const neg = {};
+  for (const [k, v] of Object.entries(d.neg)) if (v !== "" && v != null) neg[k] = Number(v);
+  const date = d.started || new Date().toISOString();
+  const entry = {id: date.slice(0,10) + "-" + view, date, day: view, exercises, names, neg};
+  history = [entry, ...history.filter(h => h.id !== entry.id)].sort((a,b) => b.date.localeCompare(a.date));
+  delete drafts[view]; draftFor(view); drafts[view].ts = Date.now(); dirtyDays.add(view);
+  saveLocal();
+  if (db) {
+    try { await db.doc("workouts/" + entry.id).set(entry); await flush(); msg.textContent = "Salvat. Bravo! Data viitoare: " + DAYNAME[nextDay()] + "."; }
+    catch(e){ msg.textContent = "Salvat doar pe telefon (serverul n-a răspuns)."; }
+  } else msg.textContent = "Salvat pe telefon. Data viitoare: " + DAYNAME[nextDay()] + ".";
+  render();
+});
+
+/* ---------- boot ---------- */
+const SEED = [{"date": "2026-10-29T06:18:40.703Z", "day": "A", "exercises": {"calf": [{"r": 20, "w": 0}, {"r": 20, "w": 10}, {"r": 20, "w": 10}, {"r": 10, "w": 20}], "chestpress": [{"r": 10, "w": 30}, {"r": 10, "w": 35}, {"r": 9, "w": 40}, {"r": 5, "w": 45}], "curl": [{"r": 10, "w": 5}, {"r": 9, "w": 8}, {"r": 8, "w": 8}, {"r": 5, "w": 8}], "lateral": [{"r": 10, "w": 5}, {"r": 10, "w": 5}, {"r": 10, "w": 6}], "legpress": [{"r": 10, "w": 0}, {"r": 10, "w": 0}, {"r": 11, "w": 0}], "pullup": [{"r": 8, "w": null}, {"r": 5, "w": null}, {"r": 4, "w": null}], "pushdown": [{"r": 15, "w": 15}, {"r": 15, "w": 20}, {"r": 10, "w": 25}], "shoulderpress": [{"r": 10, "w": 5}, {"r": 10, "w": 8}, {"r": 10, "w": 8}, {"r": 9, "w": 8}]}, "id": "2026-10-29-A"}, {"date": "2026-10-31T02:48:22.275Z", "day": "B", "exercises": {"hammer": [{"r": 8, "w": 8}, {"r": 7, "w": 8}], "incline": [{"r": 10, "w": 8}, {"r": 10, "w": 10}, {"r": 10, "w": 10}], "latpull": [{"r": 8, "w": 30}], "legext": [{"r": 10, "w": 35}, {"r": 10, "w": 35}, {"r": 10, "w": 40}], "pullup": [{"r": 8, "w": null}, {"r": 5, "w": null}, {"r": 3, "w": null}, {"r": 1, "w": null}], "pushrope": [{"r": 12, "w": 20}, {"r": 12, "w": 20}, {"r": 10, "w": 20}]}, "id": "2026-10-31-B", "neg": {"pullup": 5}}, {"date": "2026-11-02T06:51:43.991Z", "day": "A", "exercises": {"calf": [{"r": 15, "w": 10}, {"r": 12, "w": 20}, {"r": 13, "w": 20}], "chestpress": [{"r": 10, "w": 40}, {"r": 10, "w": 40}, {"r": 14, "w": 40}], "curl": [{"r": 12, "w": 8}, {"r": 11, "w": 8}, {"r": 10, "w": 8}], "lateral": [{"r": 10, "w": 6}, {"r": 10, "w": 6}, {"r": 11, "w": 6}], "legpress": [{"r": 10, "w": 0}, {"r": 10, "w": 10}, {"r": 12, "w": 10}], "pullup": [{"r": 9, "w": null}, {"r": 5, "w": null}, {"r": 3, "w": null}], "pushdown": [{"r": 12, "w": 20}, {"r": 12, "w": 25}, {"r": 9, "w": 25}], "shoulderpress": [{"r": 12, "w": 8}, {"r": 12, "w": 10}, {"r": 11, "w": 10}], "shrug": [{"r": 13, "w": 15}, {"r": 13, "w": 15}, {"r": 13, "w": 15}]}, "id": "2026-11-02-A", "neg": {"pullup": 6}}, {"date": "2026-11-04T05:00:00.000Z", "day": "A", "exercises": {"cablecurl": [{"r": 10, "w": 20}, {"r": 10, "w": 20}, {"r": 10, "w": 20}], "calf": [{"r": 12, "w": 20}, {"r": 12, "w": 20}, {"r": 12, "w": 20}], "chestpress": [{"r": 12, "w": 45}, {"r": 10, "w": 45}, {"r": 10, "w": 45}], "lateral": [{"r": 15, "w": 5}, {"r": 12, "w": 6}, {"r": 10, "w": 7}], "legpress": [{"r": 10, "w": 20}, {"r": 10, "w": 20}, {"r": 10, "w": 20}], "overhead": [{"r": 10, "w": 10}, {"r": 10, "w": 15}], "pecfly": [{"r": 10, "w": 35}, {"r": 10, "w": 35}, {"r": 10, "w": 35}], "pullup": [{"r": 8, "w": null}, {"r": 4, "w": null}, {"r": 3, "w": null}], "pushdown": [{"r": 12, "w": 25}, {"r": 10, "w": 25}, {"r": 8, "w": 25}], "shoulderpress": [{"r": 10, "w": 10}, {"r": 9, "w": 10}, {"r": 8, "w": 10}], "shrug": [{"r": 13, "w": 15}, {"r": 13, "w": 15}, {"r": 13, "w": 15}]}, "id": "2026-11-04-A", "neg": {"pullup": 5}}, {"date": "2026-11-07T12:18:17.026Z", "day": "U2", "exercises": {"chestpress": [{"r": 12, "w": 45}, {"r": 12, "w": 45}, {"r": 11, "w": 45}], "hammer": [{"r": 10, "w": 8}, {"r": 9, "w": 8}, {"r": 5, "w": 8}], "incline": [{"r": 10, "w": 10}, {"r": 10, "w": 10}, {"r": 11, "w": 10}], "lateral": [{"r": 10, "w": 5}, {"r": 10, "w": 5}, {"r": 15, "w": 5}], "overhead": [{"r": 10, "w": 10}, {"r": 15, "w": 15}], "pecfly": [{"r": 10, "w": 35}, {"r": 10, "w": 40}, {"r": 10, "w": 40}], "pullup": [{"r": 8, "w": null}, {"r": 7, "w": null}, {"r": 5, "w": null}], "pushdown": [{"r": 10, "w": 25}, {"r": 5, "w": 25}, {"r": 9, "w": 20}], "revpec": [{"r": 10, "w": 25}, {"r": 10, "w": 25}, {"r": 10, "w": 25}]}, "id": "2026-11-07-U2", "neg": {"pullup": 7}}, {"date": "2026-11-11T10:00:00.000Z", "day": "U1", "exercises": {"bench": [{"r": 12, "w": 30}, {"r": 10, "w": 40}, {"r": 4, "w": 50}, {"r": 1, "w": 55}, {"r": 10, "w": 45}], "curl": [{"r": 10, "w": 10}], "hammer": [{"r": 7, "w": 8}], "lateral": [{"r": 15, "w": 5}, {"r": 17, "w": 2.5}, {"r": 20, "w": 2.5}], "overhead": [{"r": 10, "w": 15}, {"r": 10, "w": 15}, {"r": 10, "w": 15}], "platepress": [{"r": 10, "w": 10}, {"r": 5, "w": 15}, {"r": 9, "w": 19}], "platerow": [{"r": 12, "w": 15}, {"r": 10, "w": 20}, {"r": 12, "w": 20}], "pullup": [{"r": 9, "w": null}, {"r": 3, "w": null}, {"r": 4, "w": null}], "pushdown": [{"r": 12, "w": 25}, {"r": 10, "w": 25}, {"r": 10, "w": 25}]}, "id": "2026-11-11-U1", "names": {"bench": "Împins cu bara la piept", "curl": "Flexii biceps cu gantere", "hammer": "Biceps ciocan", "lateral": "Ridicări laterale", "overhead": "Triceps peste cap", "platepress": "Presă umeri la aparat cu discuri", "platerow": "Ramat la aparat cu discuri", "pullup": "Tracțiuni la bară", "pushdown": "Triceps la scripete"}, "neg": {"pullup": 7}, "note": "PR bench 55 kg × 1"}];
+try {
+  const h = JSON.parse(localStorage.getItem("ul-history") || "[]"); if (Array.isArray(h) && h.length) history = h; else history = SEED.slice().sort((a,b) => b.date.localeCompare(a.date));
+  const p = JSON.parse(localStorage.getItem("ul-plan") || "null"); if (p && p.days) plan = p;
+  const d = JSON.parse(localStorage.getItem("ul-drafts") || "null"); if (d && typeof d === "object") drafts = d;
+} catch(e){}
+view = nextDay();
+setSync("se încarcă…");
+render();
+
+(async () => {
+  const timer = setTimeout(() => { if (!db) setSync("✓ salvat", "ok"); }, 10000);
+  try {
+    const use = n => (window.claude && window.claude.use) ? window.claude.use(n) : Promise.resolve(null);
+    const [dbx, smp] = await Promise.all([use("db"), use("sample")]);
+    sample = smp;
+    if (sample) { try { const lim = await sample.limits(); canImages = !!lim.images; } catch(_){} }
+    if (!dbx) { clearTimeout(timer); setSync("✓ salvat", "ok"); return; }
+    db = dbx;
+    try {
+      const ps = await db.doc("config/plan").get();
+      if (ps.exists) { const rp = JSON.parse(ps.data().json); if (rp && rp.days && (rp.ts || 0) >= (plan.ts || 0)) plan = rp; else planDirty = true; }
+      const ds = await db.collection("drafts").get();
+      for (const doc of ds.docs) { const v = doc.data(); if (!v || !v.json) continue; const r = JSON.parse(v.json); if (!drafts[doc.id] || (r.ts || 0) >= (drafts[doc.id].ts || 0)) drafts[doc.id] = r; else dirtyDays.add(doc.id); }
+      for (const k of Object.keys(drafts)) if (!ds.docs.some(x => x.id === k) && hasData(drafts[k])) dirtyDays.add(k);
+    } catch(e){}
+    clearTimeout(timer);
+    saveLocal(); setSync("✓ salvat", "ok");
+    if (dirtyDays.size || planDirty) flush();
+    let first = true;
+    db.collection("workouts").onSnapshot(snap => {
+      const remote = snap.docs.map(d => d.data()).filter(Boolean);
+      const byId = new Map(history.map(h => [h.id, h]));
+      for (const r of remote) byId.set(r.id, r);
+      history = [...byId.values()].sort((a,b) => b.date.localeCompare(a.date));
+      saveLocal();
+      if (first) { first = false; const dd = drafts[view]; if (!hasData(dd)) view = nextDay(); }
+      const active = document.activeElement && document.activeElement.tagName === "INPUT";
+      if (!active && $("sheet").hidden) render();
+    }, () => {});
+    render();
+  } catch(e) { clearTimeout(timer); setSync("✓ salvat", "ok"); }
+})();
+</script>
+
+</body></html>
