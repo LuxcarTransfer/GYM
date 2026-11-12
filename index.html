@@ -73,6 +73,7 @@ summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--accent)}
 .primary{font:700 16px var(--text);border:0;border-radius:11px;padding:13px 18px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
 .timer{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:7;
   background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 14px;font:700 22px var(--mono);display:flex;gap:10px;align-items:center}
+.timer[hidden]{display:none}
 .timer button{font:600 13px var(--text);background:transparent;color:var(--bg);border:1px solid currentColor;border-radius:8px;padding:4px 8px;cursor:pointer}
 .hist{display:grid;gap:10px}
 .hist .h{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
@@ -497,7 +498,10 @@ function card(d, id, i){
     const ni = el("input", {type:"number", inputmode:"numeric", min:"0", placeholder: lastNeg ? String(lastNeg[id]) : "", "aria-label":"Negative făcute"});
     ni.value = d.neg[id] || "";
     ni.addEventListener("input", () => { d.neg[id] = ni.value; touch(view); });
-    box.append(el("div", {class:"set bw"}, el("span", {class:"n", text:"N"}), el("label", {}, ni, el("span", {class:"unit", text:"negative"})), el("span", {})));
+    d.negDone = d.negDone || {};
+    const nok = el("button", {type:"button", "aria-pressed": String(!!d.negDone[id]), "aria-label":"Negative gata", text:"✓"});
+    nok.addEventListener("click", () => { d.negDone[id] = !d.negDone[id]; nok.setAttribute("aria-pressed", String(d.negDone[id])); touch(view); if (d.negDone[id]) startTimer(x.rest || 90); });
+    box.append(el("div", {class:"set bw"}, el("span", {class:"n", text:"N"}), el("label", {}, ni, el("span", {class:"unit", text:"negative"})), nok));
   }
   const inPlan = plan.days[view].includes(id);
   c.append(box, el("div", {class:"ex-actions"},
